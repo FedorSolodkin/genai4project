@@ -6,11 +6,9 @@ import time
 import os
 from sentence_transformers import SentenceTransformer, util
 
-OAUTH_TOKEN = os.getenv("OAUTH_TOKEN") 
-JSON_FILE = "products.json"
 
 class ProductAnalyzer:
-    def __init__(self):
+    def __init__(self, JSON_FILE):
         print("Загрузка нейросети...")
         self.model = SentenceTransformer('intfloat/multilingual-e5-base')
         
@@ -18,14 +16,17 @@ class ProductAnalyzer:
 
         self.visual_neg = self.model.encode(["query: тусклый серый блеклый простой стандартный обычный скучный матовый"], convert_to_tensor=True)
 
-
         self.novelty_pos = self.model.encode(["query: новинка новый релиз последняя модель 2024 современный инновация тренд"], convert_to_tensor=True)
 
         self.novelty_neg = self.model.encode(["query: старый антиквариат устаревший ретро винтаж прошлый век история"], convert_to_tensor=True)
 
         self.hype_pos = self.model.encode(["query: бестселлер хит продаж топ популярный выбор покупателей высокий рейтинг"], convert_to_tensor=True)
 
-        self.hype_neg = self.model.encode(["query: средний неизвестный нишевый базовый запасная часть обыденный"], convert_to_tensor=True) 
+        self.hype_neg = self.model.encode(["query: средний неизвестный нишевый базовый запасная часть обыденный"], convert_to_tensor=True)
+
+        self.OAUTH_TOKEN = os.getenv("OAUTH_TOKEN")
+
+        self.JSON_FILE = JSON_FILE 
 
     def _get_score(self, embedding, pos, neg):
         score = (util.cos_sim(embedding, pos).item() - util.cos_sim(embedding, neg).item()) * 100
@@ -41,7 +42,7 @@ class ProductAnalyzer:
 
         headers = {
             "Content-Type": "application/json; charset=utf-8",
-            "Authorization": f"Bearer {OAUTH_TOKEN}"
+            "Authorization": f"Bearer {self.OAUTH_TOKEN}"
         }
 
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -58,10 +59,10 @@ class ProductAnalyzer:
 
     async def run(self):
         try:
-            with open(JSON_FILE, 'r', encoding='utf-8') as f:
+            with open(self.JSON_FILE, 'r', encoding='utf-8') as f:
                 products = json.load(f)
         except FileNotFoundError:
-            print(f"Файл {JSON_FILE} не найден.")
+            print(f"Файл {self.JSON_FILE} не найден.")
             return
 
         print(f"Анализ {len(products)} товаров. Запрос к API...")
@@ -101,15 +102,15 @@ class ProductAnalyzer:
         top3 = sorted(processed, key=lambda x: x['final'], reverse=True)[:3]
         
         print("\n" + "="*50)
-        print("🏆 ФИНАЛЬНЫЙ ТОП-3 (Ваш API + Нейросеть + Маржа)")
+        print("🏆 ФИНАЛЬНЫЙ ТОП-3")
         print("="*50)
         for idx, t in enumerate(top3):
             print(f"{idx+1}. {t['name']}")
             print(f"   🔥 Спрос: {t['trend']} запросов")
             print(f"   💰 Маржа: {int(((t['price']-t['market_cost'])/t['price'])*100)}%")
-            print(f"   ⭐ Рейтинг: {t['final']:.2f}")
+            print(f"   ⭐ Рейтинг привлекательных характеристик: {t['final']:.2f}")
             print("-" * 50)
 
 if __name__ == "__main__":
     app = ProductAnalyzer()
-    asyncio.run(app.run())
+    asyncio.run(app.run("products.json"))
