@@ -9,7 +9,6 @@ from sentence_transformers import SentenceTransformer, util
 
 class ProductAnalyzer:
     def __init__(self, JSON_FILE):
-        print("Загрузка нейросети...")
         self.model = SentenceTransformer('intfloat/multilingual-e5-base')
         
         self.visual_pos = self.model.encode(["query: яркий красочный насыщенный неоновый броский дизайн визуально привлекательный"], convert_to_tensor=True)
@@ -65,8 +64,6 @@ class ProductAnalyzer:
             print(f"Файл {self.JSON_FILE} не найден.")
             return
 
-        print(f"Анализ {len(products)} товаров. Запрос к API...")
-
         tasks = [self.get_trend_info(p['name']) for p in products]
         api_responses = await asyncio.gather(*tasks)
 
@@ -78,7 +75,6 @@ class ProductAnalyzer:
         for i, p in enumerate(products):
             json_data = api_responses[i]
             total_trend = 0
-            
             if json_data and 'topRequests' in json_data:
                 for item in json_data['topRequests']:
                     total_trend += item.get('count', 0)
@@ -92,25 +88,37 @@ class ProductAnalyzer:
             margin = 0
             if p['price'] > 0:
                 margin = ((p['price'] - p['market_cost']) / p['price']) * 100
-            
+
             trend_score = math.log1p(total_trend) * 2.5 
             final = (m_score * 1.5) + (margin * 0.4) + trend_score
             
-            processed.append({**p, "trend": total_trend, "final": final})
-            print(f"{p['name'][:25]:<25} | {total_trend:<13} | {final:.1f}")
+            processed.append({
+                **p, 
+                "_temp_trend": total_trend, 
+                "_temp_margin": margin, 
+                "_temp_final": final
+            })
 
-        top3 = sorted(processed, key=lambda x: x['final'], reverse=True)[:3]
+        top3_raw = sorted(processed, key=lambda x: x['_temp_final'], reverse=True)[:3]
         
-        print("\n" + "="*50)
-        print("🏆 ФИНАЛЬНЫЙ ТОП-3")
-        print("="*50)
-        for idx, t in enumerate(top3):
-            print(f"{idx+1}. {t['name']}")
-            print(f"   🔥 Спрос: {t['trend']} запросов")
-            print(f"   💰 Маржа: {int(((t['price']-t['market_cost'])/t['price'])*100)}%")
-            print(f"   ⭐ Рейтинг привлекательных характеристик: {t['final']:.2f}")
-            print("-" * 50)
+        final_output = []
+
+        for item in top3_raw:
+            rec_text = (f"Обладает привлекательными визуальными характеристиками: (Score: {item['_temp_final']:.1f}). "
+                        f"Спрос: {item['_temp_trend']} запросов. "
+                        f"Маржинальность: {int(item['_temp_margin'])}%.")
+
+            clean_product = {k: v for k, v in item.items() if not k.startswith('_')}
+            
+            clean_product['recommendation'] = rec_text
+            
+            final_output.append(clean_product)
+
+        output_file = "best_products.json"
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(final_output, f, ensure_ascii=False, indent=4)
+        
 
 if __name__ == "__main__":
-    app = ProductAnalyzer()
-    asyncio.run(app.run("products.json"))
+    app = ProductAnalyzer("products.json")
+    asyncio.run(app.run())
