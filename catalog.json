@@ -1,0 +1,18 @@
+{
+  "product": {
+    "name": "Смартфон Ultra X",
+    "category": "смартфон",
+    "price": 49990,
+    "margin": "высокая",
+    "tags": ["новинка", "яркий", "премиум"],
+    "features": ["AMOLED 120 Гц", "50 Мп камера", "быстрая зарядка"]
+  },
+  "audience_profile": {
+    "age_range": "20-35",
+    "interests": ["гаджеты", "фото", "спорт"],
+    "behavior": ["реагирует на скидки"]
+  },
+  "channel": "telegram",
+  "trends": ["минимализм", "FOMO"],
+  "n_variants": 2
+}
