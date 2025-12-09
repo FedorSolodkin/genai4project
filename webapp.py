@@ -3,6 +3,7 @@ import time
 from typing import Any, Dict, List
 
 import streamlit as st
+from prompt import get_llm_client, AdGenerator
 
 def parse_products_json(data: Any) -> List[Dict]:
 
@@ -17,72 +18,71 @@ def parse_products_json(data: Any) -> List[Dict]:
         raise ValueError("Ожидался объект JSON или список объектов JSON.")
 
 
-def stub_generate_creatives(records: List[Dict], user_text: str) -> Dict[str, Any]:
+def generate_creatives(records: List[Dict], user_text: str, llm_client, use_mistral: bool = True) -> Dict[str, Any]:
     """
-    Заглушка. Потом заменим на генерацию.
+    Генерирует креативы через LLM API.
     """
-    first = records[0]  # Пока что берём первую запись из списка
+    first = records[0]  # Берём первую запись из списка
 
     product = first.get("product", {}) or {}
     audience = first.get("audience_profile", {}) or {}
-
-    name = product.get("name", "Безымянный товар")
-    category = product.get("category", "неизвестная категория")
-    price = product.get("price", "цена не указана")
-    margin = product.get("margin", "маржа не указана")
-    tags = product.get("tags", [])
-    features = product.get("features", [])
 
     channel = first.get("channel", "telegram")
     trends = first.get("trends", [])
     n_variants = first.get("n_variants", 1)
 
-    age_range = audience.get("age_range", "не указано")
-    interests = audience.get("interests", [])
-    behavior = audience.get("behavior", [])
-    #текст для заглушки
+    # Подготовка payload для LLM
+    payload = {
+        "product": product,
+        "audience_profile": audience,
+        "channel": channel,
+        "trends": trends,
+        "n_variants": n_variants,
+    }
+
+    # Если есть дополнительные инструкции пользователя, добавляем их в тренды или notes
+    if user_text.strip():
+        # Можно добавить в тренды или создать отдельное поле
+        # Для простоты добавим как дополнительный тренд
+        if "user_instructions" not in payload:
+            payload["user_instructions"] = user_text.strip()
+
+    # Генерация через LLM
+    generator = AdGenerator(llm_client)
+    result = generator.generate_from_json_dict(payload, return_human_texts=True)
+
+    # Форматируем результат для отображения
+    variants = result.get("variants", [])
+    if not variants:
+        return {
+            "text": "❌ Не удалось сгенерировать креативы. Попробуйте еще раз.",
+            "image_url": "https://i.imgur.com/ilo8Prn.jpeg",
+        }
+
+    # Берем первый вариант для отображения
+    variant = variants[0]
     text_lines = [
-        "🔧 *Заглушка генерации креативов*",
+        f"**{variant.get('headline', '')}**",
         "",
-        f"Товар: **{name}**",
+        variant.get('text', ''),
         "",
-        f"Категория: {category}",
+        f"👉 {variant.get('cta', '')}",
         "",
-        f"Цена: {price}",
-        "",
-        f"Маржа: {margin}",
-        "",
-        f"Теги: {', '.join(tags) if tags else '—'}",
-        "",
-        f"Фичи: {', '.join(features) if features else '—'}",
-        "",
-        f"Аудитория: {age_range}",
-        "",
-        f"Интересы: {', '.join(interests) if interests else '—'}",
-        "",
-        f"Поведение: {', '.join(behavior) if behavior else '—'}",
-        "",
-        f"Канал: {channel}",
-        "",
-        f"Тренды: {', '.join(trends) if trends else '—'}",
-        "",
-        f"Количество вариантов: {n_variants}",
+        f"**Канал:** {channel}",
+        f"**Примечания:** {variant.get('notes', '')}",
     ]
 
-    if user_text.strip():
+    if len(variants) > 1:
         text_lines.append("")
-        text_lines.append("Дополнительные инструкции пользователя:")
-        text_lines.append(user_text.strip())
-
-    text_lines.append("")
-    text_lines.append("👉 Здесь позже будет сгенерированный рекламный текст от модели.")
+        text_lines.append(f"*Всего сгенерировано вариантов: {len(variants)}*")
 
     result_text = "\n".join(text_lines)
 
-    placeholder_image_url = "https://i.imgur.com/ilo8Prn.jpeg" # сюда вставлять ссылку на сгенерированную картинку
+    placeholder_image_url = "https://i.imgur.com/ilo8Prn.jpeg"  # сюда вставлять ссылку на сгенерированную картинку
     return {
         "text": result_text,
         "image_url": placeholder_image_url,
+        "variants": variants,  # Сохраняем все варианты для возможного использования
     }
 
 def main():
@@ -92,7 +92,15 @@ def main():
     )
 
     st.title("GENAI-4: интерфейс для генерации рекламных креативов")
-    st.caption("Ввод текста → загрузка JSON с товарами → запуск генерации → результат (заглушка).")
+    st.caption("Ввод текста → загрузка JSON с товарами → запуск генерации → результат.")
+    
+    # Настройка в сайдбаре
+    st.sidebar.header("Настройки")
+    use_real_mistral = st.sidebar.checkbox(
+        "Использовать Mistral API (иначе заглушка)",
+        value=True,
+        help="Для работы нужен ключ MISTRAL_API_KEY в переменных окружения или secrets.",
+    )
 
     st.markdown("### 1. Текстовые инструкции (опционально)")
     user_text = st.text_area(
@@ -147,21 +155,29 @@ def main():
             st.error(f"Не удалось прочитать JSON: {e}")
             return
 
-        # Анимация(пока фейк длительность)
+        # Инициализация LLM клиента
+        try:
+            llm_client = get_llm_client(use_mistral=use_real_mistral)
+        except Exception as e:
+            st.error(f"Ошибка инициализации LLM-клиента: {e}")
+            if use_real_mistral:
+                st.info("💡 Убедитесь, что переменная окружения MISTRAL_API_KEY установлена, или используйте заглушку.")
+            return
+
+        # Генерация креативов
         with st.spinner("Генерация креативов..."):
-            progress_placeholder = st.progress(0)
-            for i in range(100):
-                time.sleep(0.02)  # искусственная задержка для анимации
-                progress_placeholder.progress(i + 1)
+            try:
+                result = generate_creatives(records, user_text, llm_client, use_real_mistral)
+            except Exception as e:
+                st.error(f"Ошибка при генерации: {e}")
+                return
 
-        result = stub_generate_creatives(records, user_text)
+        st.success("Генерация завершена!")
 
-        st.success("Генерация завершена (заглушка).")
-
-        st.markdown("### 4. Результат (пока заглушка)")
+        st.markdown("### 4. Результат")
         st.markdown(result["text"])
 
-        st.markdown("#### Картинка-креатив (заглушка)")
+        st.markdown("#### Картинка-креатив")
         st.image(
             result["image_url"],
             caption="Здесь будет вывод сгенерированного баннера/креатива.",

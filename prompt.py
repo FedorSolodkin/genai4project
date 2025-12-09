@@ -2,8 +2,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 import json
+import os
+import re
 
-from openai import OpenAI
+import httpx
 from main import evaluate_ad  # импортируем оценщик из main.py
 
 
@@ -165,39 +167,89 @@ class AdVariant:
 
 
 # ==========================
-# 3. LLM CLIENT (отдельный слой)
+# 3. LLM CLIENT (Mistral API)
 # ==========================
 
-class LLMClient:
+MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
+
+
+def _extract_json_from_content(content: str) -> Dict[str, Any]:
     """
-    Обёртка над LLM. Сейчас — OpenAI, потом можно заменить на что угодно.
+    Пытается аккуратно вытащить JSON из произвольного текста LLM.
+    1) режем по ```json ... ``` если есть
+    2) если нет — берем подстроку от первой '{' до последней '}'
+    3) парсим json.loads
+    """
+    if not isinstance(content, str):
+        raise ValueError(f"Ожидалась строка с JSON, но пришло: {type(content)}")
+
+    # 1. Попробуем найти блок ```json ... ```
+    code_block = re.search(r"```json(.*?)```", content, flags=re.DOTALL | re.IGNORECASE)
+    if code_block:
+        candidate = code_block.group(1).strip()
+        return json.loads(candidate)
+
+    # 2. Если нет code-block, берем от первой { до последней }
+    start = content.find("{")
+    end = content.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        candidate = content[start : end + 1].strip()
+        return json.loads(candidate)
+
+    # 3. Последняя попытка — может, это уже чистый JSON
+    return json.loads(content)
+
+
+class MistralClient:
+    """
+    Клиент для Mistral API.
+    Ожидает переменную окружения MISTRAL_API_KEY.
     """
 
-    def __init__(self, api_key: str, model: str = "gpt-4.1-mini"):
-        self.client = OpenAI(api_key=api_key)
+    def __init__(self, model: str = "mistral-small-latest"):
+        api_key = os.getenv("MISTRAL_API_KEY")
+        if not api_key:
+            raise ValueError("MISTRAL_API_KEY не задан в переменных окружения!")
+        self.api_key = api_key
         self.model = model
 
     def generate_variants(self, payload: Dict[str, Any]) -> List[AdVariant]:
-        """
-        Отправляем SYSTEM_PROMPT + payload (JSON) и получаем список AdVariant.
-        """
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
+        body = {
+            "model": self.model,
+            "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}
-            ]
-        )
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+            ],
+            "temperature": 0.85,
+        }
 
-        content = response.choices[0].message.content
-        data = json.loads(content)
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
 
-        variants_raw = data.get("variants", [])
+        resp = httpx.post(MISTRAL_API_URL, headers=headers, json=body, timeout=40.0)
+        resp.raise_for_status()
+        data = resp.json()
+
+        content = data["choices"][0]["message"]["content"]
+
+        # --- аккуратно вытаскиваем JSON ---
+        try:
+            parsed = _extract_json_from_content(content)
+        except Exception as e:
+            # чтобы легче отлаживать, выкидываем понятную ошибку
+            raise ValueError(
+                f"Не удалось распарсить JSON из ответа Mistral. "
+                f"Сырой контент:\n{content[:500]}\nОшибка: {e}"
+            ) from e
+
+        variants_raw = parsed.get("variants", [])
         variants: List[AdVariant] = []
         for v in variants_raw:
             variants.append(
                 AdVariant(
-                    channel=v.get("channel", ""),
+                    channel=v.get("channel", payload.get("channel", "")),
                     headline=v.get("headline", ""),
                     text=v.get("text", ""),
                     cta=v.get("cta", ""),
@@ -205,6 +257,48 @@ class LLMClient:
                 )
             )
         return variants
+
+
+class MockLLMClient:
+    """
+    Заглушка вместо Mistral — для отладки без API.
+    """
+
+    def generate_variants(self, payload: Dict[str, Any]) -> List[AdVariant]:
+        p = payload["product"]
+        channel = payload["channel"]
+        name = p.get("name", "товар")
+        desc = p.get("features", [""])[0] if p.get("features") else ""
+
+        if channel == "telegram":
+            headline = f"{name} — забери, пока есть"
+            text = f"{name}. {desc} Успей, пока цена ещё держится 🔥"
+            cta = "Успеть взять сейчас"
+        elif channel == "vk":
+            headline = f"{name}: техника, которая радует каждый день"
+            text = (
+                f"{name} — для тех, кто ценит качество и комфорт. {desc} "
+                f"Уже выбирают десятки покупателей, заказывайте онлайн."
+            )
+            cta = "Заказать онлайн"
+        else:
+            headline = f"{name} со скидкой"
+            text = f"{name}. {desc} Цена по акции, быстрая доставка."
+            cta = "Купить онлайн"
+
+        return [
+            AdVariant(
+                channel=channel,
+                headline=headline,
+                text=text,
+                cta=cta,
+                notes="Сгенерировано MockLLMClient для отладки.",
+            )
+        ]
+
+
+# Для обратной совместимости
+LLMClient = MistralClient
 
 
 # ==========================
@@ -336,7 +430,7 @@ class AdGenerator:
     - и/или тексты объявлений
     """
 
-    def __init__(self, llm_client: LLMClient):
+    def __init__(self, llm_client):
         self.llm_client = llm_client
 
     def generate_from_json_dict(
@@ -449,6 +543,15 @@ def generate_and_optimize_ad(
 # 8. MAIN (запуск для проверки)
 # ==========================
 
+def get_llm_client(use_mistral: bool = True):
+    """
+    Возвращает либо реальный MistralClient, либо MockLLMClient.
+    """
+    if use_mistral:
+        return MistralClient()
+    return MockLLMClient()
+
+
 if __name__ == "__main__":
     # 1. Путь к JSON с товаром
     JSON_FILE = "input/product_2.json"
@@ -458,7 +561,7 @@ if __name__ == "__main__":
         example_input = json.load(f)
 
     # 3. Инициализируем клиента LLM
-    llm_client = LLMClient(api_key="YOUR_API_KEY_HERE")
+    llm_client = get_llm_client(use_mistral=True)
     generator = AdGenerator(llm_client)
 
     # 4. Генерируем и оптимизируем рекламу для конкретной аудитории
