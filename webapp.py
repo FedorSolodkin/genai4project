@@ -101,103 +101,94 @@ def main():
         initial_sidebar_state="expanded",
     )
 
-    # Кастомный CSS для тёмного дизайна (как в project_creative-main)
+    # Нейтральный светлый CSS (убраны агрессивные тёмные стили)
     st.markdown("""
     <style>
-        body {
-            background-color: #020617;
-            color: #e5e7eb;
+        body, [data-testid="stAppViewContainer"], .block-container {
+            background: #f7f9fb;
+            color: #1f2937;
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
         }
-        .main {
-            background: radial-gradient(circle at top left, #020617 0, #0f172a 40%, #020617 100%);
-            color: #e5e7eb;
-        }
         .main-header {
-            background: radial-gradient(circle at top left, #111827 0, #020617 65%);
-            padding: 2rem;
-            border-radius: 20px;
-            border: 1px solid rgba(148,163,184,0.3);
-            margin-bottom: 2rem;
-            box-shadow: 0 18px 40px rgba(15,23,42,0.65);
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 20px;
         }
         .main-header h1 {
-            color: #e5e7eb;
+            color: #111827;
             margin: 0;
-            font-size: 2rem;
+            font-size: 24px;
             font-weight: 700;
-            background: linear-gradient(to right, #e5e7eb, #60a5fa);
-            -webkit-background-clip: text;
-            color: transparent;
         }
         .main-header p {
-            color: #9ca3af;
-            margin: 0.5rem 0 0 0;
+            color: #6b7280;
+            margin: 6px 0 0 0;
             font-size: 13px;
         }
         .ad-card {
-            background: radial-gradient(circle at top left, #111827 0, #020617 65%);
-            padding: 18px 20px;
-            border-radius: 20px;
-            border: 1px solid rgba(148,163,184,0.3);
+            background: #ffffff;
+            padding: 18px;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
             margin-bottom: 16px;
-            box-shadow: 0 18px 40px rgba(15,23,42,0.65);
-            transition: box-shadow 0.2s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.03);
         }
         .ad-card:hover {
-            box-shadow: 0 18px 40px rgba(15,23,42,0.85);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.06);
         }
         .variant-number {
-            background: rgba(56,189,248,0.1);
-            color: #38bdf8;
+            background: #eef2ff;
+            color: #4338ca;
             padding: 2px 10px;
             border-radius: 999px;
             font-weight: 600;
             font-size: 11px;
             text-transform: uppercase;
-            letter-spacing: .16em;
+            letter-spacing: .12em;
             display: inline-block;
-            margin-bottom: 1rem;
-            border: 1px solid rgba(56,189,248,0.4);
+            margin-bottom: 10px;
+            border: 1px solid #c7d2fe;
         }
         .ad-headline {
             font-size: 17px;
             font-weight: 650;
-            color: #e5e7eb;
-            margin-bottom: 4px;
+            color: #111827;
+            margin-bottom: 6px;
             line-height: 1.3;
         }
         .ad-text {
-            font-size: 13px;
-            color: #d1d5db;
+            font-size: 14px;
+            color: #374151;
             line-height: 1.7;
-            margin: 1rem 0;
+            margin: 12px 0;
         }
         .ad-cta {
             display: inline-block;
             margin-top: 8px;
-            padding: 4px 10px;
+            padding: 6px 12px;
             border-radius: 999px;
-            background: rgba(249,115,22,0.16);
-            color: #fdba74;
+            background: #111827;
+            color: #ffffff;
             font-size: 12px;
-            border: 1px solid rgba(249,115,22,0.45);
-            font-weight: 500;
+            border: 1px solid #111827;
+            font-weight: 600;
         }
         .ad-meta {
-            color: #9ca3af;
+            color: #6b7280;
             font-size: 12px;
-            margin-top: 1.25rem;
-            padding-top: 1rem;
-            border-top: 1px solid rgba(148,163,184,0.3);
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid #e5e7eb;
         }
         .product-info {
-            background: radial-gradient(circle at top left, #111827 0, #020617 65%);
-            padding: 18px 20px;
-            border-radius: 20px;
-            border: 1px solid rgba(148,163,184,0.3);
-            margin-bottom: 2rem;
-            box-shadow: 0 18px 40px rgba(15,23,42,0.65);
+            background: #ffffff;
+            padding: 18px;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.03);
         }
         .product-tags {
             display: flex;
@@ -206,20 +197,20 @@ def main():
             margin-top: 0.75rem;
         }
         .tag {
-            background: rgba(96,165,250,0.15);
-            color: #60a5fa;
-            padding: 2px 10px;
+            background: #eef2ff;
+            color: #4338ca;
+            padding: 4px 10px;
             border-radius: 999px;
             font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: .16em;
-            border: 1px solid rgba(96,165,250,0.5);
+            letter-spacing: .12em;
+            border: 1px solid #c7d2fe;
         }
         .stButton>button {
-            background: rgba(96,165,250,0.15);
-            color: #60a5fa;
-            border: 1px solid rgba(96,165,250,0.5);
+            background: #111827;
+            color: #ffffff;
+            border: 1px solid #111827;
             border-radius: 999px;
             padding: 0.75rem 2rem;
             font-weight: 600;
@@ -227,70 +218,32 @@ def main():
             transition: background 0.2s;
         }
         .stButton>button:hover {
-            background: rgba(96,165,250,0.25);
-            color: #60a5fa;
+            background: #1f2937;
+            color: #ffffff;
         }
         .section-title {
-            font-size: 26px;
+            font-size: 24px;
             font-weight: 700;
             margin-bottom: 6px;
-            background: linear-gradient(to right, #e5e7eb, #60a5fa);
-            -webkit-background-clip: text;
-            color: transparent;
+            color: #111827;
         }
         .section-sub {
             font-size: 13px;
-            color: #9ca3af;
-            margin-bottom: 18px;
+            color: #6b7280;
+            margin-bottom: 16px;
         }
         .badge {
             display: inline-block;
-            padding: 2px 10px;
+            padding: 4px 10px;
             border-radius: 999px;
             font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: .16em;
-            background: rgba(56,189,248,0.1);
-            color: #38bdf8;
-            border: 1px solid rgba(56,189,248,0.4);
+            letter-spacing: .12em;
+            background: #eef2ff;
+            color: #4338ca;
+            border: 1px solid #c7d2fe;
             margin-right: 6px;
-        }
-        [data-testid="stSidebar"] {
-            background: radial-gradient(circle at top left, #111827 0, #020617 65%);
-        }
-        [data-testid="stSidebar"] * {
-            color: #e5e7eb;
-        }
-        [data-testid="stTextArea"] textarea {
-            background: #111827;
-            color: #e5e7eb;
-            border: 1px solid rgba(148,163,184,0.3);
-        }
-        [data-testid="stFileUploader"] {
-            background: #111827;
-        }
-        h3 {
-            color: #e5e7eb;
-        }
-        .stMarkdown p {
-            color: #d1d5db;
-        }
-        [data-testid="stInfo"] {
-            background: rgba(56,189,248,0.1);
-            border: 1px solid rgba(56,189,248,0.4);
-        }
-        [data-testid="stSuccess"] {
-            background: rgba(34,197,94,0.1);
-            border: 1px solid rgba(34,197,94,0.4);
-        }
-        [data-testid="stError"] {
-            background: rgba(239,68,68,0.1);
-            border: 1px solid rgba(239,68,68,0.4);
-        }
-        [data-testid="stWarning"] {
-            background: rgba(249,115,22,0.1);
-            border: 1px solid rgba(249,115,22,0.4);
         }
     </style>
     """, unsafe_allow_html=True)
@@ -375,13 +328,13 @@ def main():
                 mime="application/json",
                 use_container_width=True,
             )
+        st.caption("Если файл не выбрали — будет использован встроенный test.json.")
 
     with col2:
         st.markdown("### 🎯 Быстрый старт")
         st.markdown("""
         **Пример формата:**
-        - Используйте `catalog.json` или `best_products.json`
-        - Или создайте свой JSON по шаблону
+        - Создайте свой JSON по шаблону
         """)
         
         if st.checkbox("Показать пример JSON"):
