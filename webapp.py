@@ -1,53 +1,43 @@
 import json
-import time
 from typing import Any, Dict, List
 
 import streamlit as st
+# Предполгаем, что эти модули у вас есть локально или в проекте
+# Если их нет, код работать не будет (нужны prompt.py и настройки API)
 from prompt import get_llm_client, AdGenerator
 
 # Путь к встроенному примеру
 DEFAULT_JSON_PATH = "test.json"
 
 def parse_products_json(data: Any) -> List[Dict]:
-
     if isinstance(data, dict):
-        # Если это один объект с полями product/audience_profile/channel/...
-        # считаем его единственной записью
         return [data]
     elif isinstance(data, list):
-        # Если это уже список подобных объектов
         return data
     else:
         raise ValueError("Ожидался объект JSON или список объектов JSON.")
 
-
 def generate_creatives(records: List[Dict], user_text: str, llm_client, use_mistral: bool = True) -> Dict[str, Any]:
     """
     Генерирует креативы через LLM API.
-    Поддерживает два формата:
-    1. Полный формат: {product: {...}, audience_profile: {...}, channel: "...", ...}
-    2. Формат из productAnalyzer: {name: "...", category: "...", description: "...", ...}
     """
-    first = records[0]  # Берём первую запись из списка
+    first = records[0]
 
-    # Проверяем формат: если есть ключ "product" - это полный формат, иначе - формат из productAnalyzer
     if "product" in first:
         product = first.get("product", {}) or {}
         audience = first.get("audience_profile", {}) or {}
         channel = first.get("channel", "telegram")
         trends = first.get("trends", [])
-        n_variants = first.get("n_variants", 3)  # По умолчанию генерируем 3 варианта
+        n_variants = first.get("n_variants", 3)
     else:
-        # Формат из productAnalyzer: конвертируем в нужный формат
         product = {
             "name": first.get("name", ""),
             "category": first.get("category", ""),
             "price": first.get("price"),
             "margin": "высокая" if first.get("price", 0) > first.get("market_cost", 0) * 1.5 else "средняя",
-            "tags": first.get("tags", []),  # Извлекаем теги из данных
+            "tags": first.get("tags", []),
             "features": [first.get("description", "")]
         }
-        # Создаём базовый профиль аудитории по умолчанию
         audience = {
             "age_range": "20-35",
             "interests": ["гаджеты", "технологии"],
@@ -55,9 +45,8 @@ def generate_creatives(records: List[Dict], user_text: str, llm_client, use_mist
         }
         channel = "telegram"
         trends = ["минимализм", "FOMO"]
-        n_variants = 3  # По умолчанию генерируем 3 варианта
+        n_variants = 3
 
-    # Подготовка payload для LLM
     payload = {
         "product": product,
         "audience_profile": audience,
@@ -66,18 +55,13 @@ def generate_creatives(records: List[Dict], user_text: str, llm_client, use_mist
         "n_variants": n_variants,
     }
 
-    # Если есть дополнительные инструкции пользователя, добавляем их в тренды или notes
     if user_text.strip():
-        # Можно добавить в тренды или создать отдельное поле
-        # Для простоты добавим как дополнительный тренд
         if "user_instructions" not in payload:
             payload["user_instructions"] = user_text.strip()
 
-    # Генерация через LLM
     generator = AdGenerator(llm_client)
     result = generator.generate_from_json_dict(payload, return_human_texts=True)
 
-    # Форматируем результат для отображения
     variants = result.get("variants", [])
     if not variants:
         return {
@@ -85,291 +69,282 @@ def generate_creatives(records: List[Dict], user_text: str, llm_client, use_mist
             "image_url": "https://i.imgur.com/ilo8Prn.jpeg",
         }
 
-    # Возвращаем все варианты для красивого отображения
-    placeholder_image_url = "https://i.imgur.com/ilo8Prn.jpeg"  # сюда вставлять ссылку на сгенерированную картинку
+    placeholder_image_url = "https://i.imgur.com/ilo8Prn.jpeg"
     return {
-        "variants": variants,  # Все варианты для отображения
+        "variants": variants,
         "channel": channel,
         "image_url": placeholder_image_url,
-        "product": product,  # Добавляем информацию о товаре для отображения тегов
+        "product": product,
     }
 
 def main():
     st.set_page_config(
-        page_title="GENAI-4 интерфейс",
+        page_title="GENAI-4 Interface",
         layout="wide",
         initial_sidebar_state="expanded",
     )
 
-    # Тёмный стиль: тёмный фон, светлый текст, контрастные карточки
+    # --- ГЛОБАЛЬНЫЙ CSS СТИЛЬ ---
+    # Мы принудительно перекрашиваем стандартные элементы Streamlit, 
+    # чтобы они выглядели хорошо независимо от темы пользователя (светлой/темной).
     st.markdown("""
     <style>
-        body, [data-testid="stAppViewContainer"], .block-container {
-            background: #020617;
-            color: #e5e7eb;
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+        /* 1. Основной фон и текст */
+        [data-testid="stAppViewContainer"] {
+            background-color: #020617;
+            background-image: radial-gradient(circle at 50% 0%, #1e293b 0%, #020617 75%);
+            color: #e2e8f0;
         }
-        .main-header {
-            background: radial-gradient(circle at top left, #111827 0, #020617 65%);
-            padding: 20px;
-            border-radius: 16px;
-            border: 1px solid rgba(148,163,184,0.35);
-            margin-bottom: 20px;
-            box-shadow: 0 18px 40px rgba(15,23,42,0.55);
+        [data-testid="stHeader"] {
+            background-color: rgba(0,0,0,0); /* Прозрачный хедер */
         }
-        .main-header h1 {
-            color: #e5e7eb;
-            margin: 0;
-            font-size: 22px;
-            font-weight: 700;
+        [data-testid="stSidebar"] {
+            background-color: #0f172a;
+            border-right: 1px solid #1e293b;
         }
-        .main-header p {
-            color: #9ca3af;
-            margin: 6px 0 0 0;
-            font-size: 13px;
-        }
-        .product-info, .ad-card {
-            background: radial-gradient(circle at top left, #111827 0, #020617 65%);
-            padding: 18px;
-            border-radius: 16px;
-            border: 1px solid rgba(148,163,184,0.35);
-            margin-bottom: 16px;
-            box-shadow: 0 18px 40px rgba(15,23,42,0.55);
-        }
-        .ad-card:hover {
-            box-shadow: 0 18px 48px rgba(15,23,42,0.7);
-        }
-        .variant-number {
-            background: rgba(56,189,248,0.12);
-            color: #38bdf8;
-            padding: 2px 10px;
-            border-radius: 999px;
-            font-weight: 600;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: .1em;
-            display: inline-block;
-            margin-bottom: 10px;
-            border: 1px solid rgba(56,189,248,0.45);
-        }
-        .ad-headline {
-            font-size: 17px;
-            font-weight: 650;
-            color: #e5e7eb;
-            margin-bottom: 6px;
-            line-height: 1.3;
-        }
-        .ad-text {
-            font-size: 14px;
-            color: #d1d5db;
-            line-height: 1.7;
-            margin: 10px 0 12px;
-        }
-        .ad-cta {
-            display: inline-block;
-            margin-top: 8px;
-            padding: 6px 12px;
-            border-radius: 999px;
-            background: rgba(249,115,22,0.18);
-            color: #fdba74;
-            font-size: 12px;
-            border: 1px solid rgba(249,115,22,0.5);
-            font-weight: 600;
-        }
-        .ad-meta {
-            color: #9ca3af;
-            font-size: 12px;
-            margin-top: 12px;
-            padding-top: 10px;
-            border-top: 1px solid rgba(148,163,184,0.35);
-        }
-        .product-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            margin-top: 0.75rem;
-        }
-        .tag {
-            background: rgba(96,165,250,0.12);
-            color: #60a5fa;
-            padding: 4px 10px;
-            border-radius: 999px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: .1em;
-            border: 1px solid rgba(96,165,250,0.45);
-        }
-        .stButton>button {
-            background: rgba(96,165,250,0.16);
-            color: #e5e7eb;
-            border: 1px solid rgba(96,165,250,0.5);
-            border-radius: 999px;
-            padding: 0.75rem 2rem;
-            font-weight: 600;
-            font-size: 1rem;
-            transition: background 0.2s, color 0.2s, border 0.2s;
-        }
-        .stButton>button:hover {
-            background: rgba(96,165,250,0.24);
-            color: #ffffff;
-            border: 1px solid rgba(96,165,250,0.7);
+        
+        /* 2. Типографика */
+        h1, h2, h3, h4, h5, h6, p, li, span, div {
+            color: #e2e8f0 !important;
+            font-family: 'Inter', sans-serif;
         }
         .section-title {
-            font-size: 22px;
+            font-size: 1.5rem;
             font-weight: 700;
-            margin-bottom: 6px;
-            color: #e5e7eb;
+            background: linear-gradient(90deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
         }
         .section-sub {
-            font-size: 13px;
-            color: #9ca3af;
-            margin-bottom: 16px;
+            font-size: 0.9rem;
+            color: #94a3b8 !important;
+            margin-bottom: 1.5rem;
         }
-        .badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 999px;
-            font-size: 11px;
+
+        /* 3. Кастомные Карточки (Стекломорфизм) */
+        .glass-card {
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .glass-card:hover {
+            border-color: rgba(96, 165, 250, 0.3);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+        }
+
+        /* 4. Стили для вариантов рекламы */
+        .variant-badge {
+            background: rgba(56, 189, 248, 0.15);
+            color: #38bdf8 !important;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: .1em;
-            background: rgba(56,189,248,0.12);
-            color: #38bdf8;
-            border: 1px solid rgba(56,189,248,0.45);
-            margin-right: 6px;
+            letter-spacing: 0.05em;
+            display: inline-block;
+            margin-bottom: 12px;
+            border: 1px solid rgba(56, 189, 248, 0.3);
         }
-        /* Поля ввода */
-        [data-testid="stTextArea"] textarea,
-        [data-testid="stFileUploader"] section div {
-            background: #0b1224;
-            color: #e5e7eb;
-            border: 1px solid rgba(148,163,184,0.35);
+        .ad-headline {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            line-height: 1.4;
+            color: #f8fafc !important;
         }
-        [data-testid="stFileUploader"] section div div {
-            color: #e5e7eb;
+        .ad-text {
+            font-size: 0.95rem;
+            color: #cbd5e1 !important;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+        .ad-cta {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 16px;
+            border-radius: 8px;
+            background: linear-gradient(45deg, #f97316, #ea580c);
+            color: white !important;
+            font-size: 0.85rem;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
+        }
+        .ad-meta {
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.8rem;
+            color: #64748b !important;
+        }
+
+        /* 5. Теги продукта */
+        .tag-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .product-tag {
+            background: rgba(99, 102, 241, 0.15);
+            color: #818cf8 !important;
+            padding: 2px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+
+        /* 6. Переопределение стандартных Input-ов Streamlit */
+        /* Текстовые поля */
+        [data-testid="stTextArea"] textarea, [data-testid="stTextInput"] input {
+            background-color: #0f172a;
+            color: #f1f5f9;
+            border: 1px solid #334155;
+            border-radius: 8px;
+        }
+        [data-testid="stTextArea"] textarea:focus, [data-testid="stTextInput"] input:focus {
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 1px #60a5fa;
+        }
+        /* Лейблы инпутов */
+        .st-emotion-cache-1629p8f p, .st-emotion-cache-1629p8f label { 
+             color: #cbd5e1 !important; 
+        }
+        /* Загрузчик файлов */
+        [data-testid="stFileUploader"] {
+            background-color: rgba(30, 41, 59, 0.3);
+            border-radius: 12px;
+            padding: 10px;
+        }
+        [data-testid="stFileUploader"] section {
+            background-color: #0f172a;
+        }
+        
+        /* 7. Кнопки */
+        .stButton button {
+            background: linear-gradient(to right, #2563eb, #3b82f6);
+            color: white !important;
+            border: none;
+            padding: 0.6rem 1.5rem;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.2s;
+            width: 100%;
+        }
+        .stButton button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+        }
+        
+        /* Скроллбар для красоты */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #020617; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569; 
         }
     </style>
     """, unsafe_allow_html=True)
 
-    # Заголовок в стиле project_creative-main
+    # --- ЗАГОЛОВОК ---
     st.markdown("""
-    <div style="padding: 8px 0 18px 0;">
-      <div style="font-size:13px; letter-spacing:.16em; text-transform:uppercase; color:#6b7280;">
-        GENAI-4 · Autonomous Marketing Agent
+    <div style="margin-top: 10px; margin-bottom: 30px;">
+      <div style="font-size:0.75rem; letter-spacing:0.15em; text-transform:uppercase; color:#60a5fa; font-weight:700; margin-bottom:5px;">
+        GENAI-4 · Autonomous Agent
       </div>
       <div class="section-title">
-        Генератор рекламных креативов на основе ИИ
+        Генератор рекламных кампаний
       </div>
       <div class="section-sub">
-        Загрузите JSON файл с товарами — система сгенерирует креативы под выбранный канал
+        Загрузите данные о товаре, и ИИ создаст продающие креативы для Telegram, Instagram и VK.
       </div>
     </div>
     """, unsafe_allow_html=True)
     
-    # Настройка в сайдбаре
+    # --- SIDEBAR ---
     st.sidebar.markdown("### ⚙️ Настройки")
     use_real_mistral = st.sidebar.checkbox(
-        "🤖 Использовать Mistral API",
+        "🤖 Mistral API",
         value=True,
-        help="Для работы нужен ключ MISTRAL_API_KEY в переменных окружения или secrets.",
+        help="Нужен MISTRAL_API_KEY",
     )
     
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### 📊 Информация")
-    st.sidebar.info("""
-    **Как использовать:**
-    1. Загрузите JSON файл с товарами
-    2. (Опционально) Добавьте инструкции
-    3. Нажмите "Начать генерацию"
-    4. Получите 2-3 варианта рекламы
-    """)
+    st.sidebar.info("💡 **Совет:** Подробно опишите инструкции, чтобы изменить тон сообщения (например: 'дерзкий', 'официальный').")
 
-    # Основной контент
-    col1, col2 = st.columns([2, 1])
+    # --- MAIN CONTENT ---
+    col1, col2 = st.columns([2, 1], gap="large")
     
     with col1:
-        st.markdown("### 📝 Текстовые инструкции (опционально)")
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        st.markdown("#### 📝 Дополнительные инструкции")
         user_text = st.text_area(
-            "Опишите требования к креативам / кампании",
-            placeholder="Например: фокус на выгоде для молодёжной аудитории, без жёсткого давления, подчёркиваем качество камеры...",
-            height=120,
+            "Промпт",
+            placeholder="Например: Сделай акцент на быстрой доставке. Тон дружелюбный, используй эмодзи.",
+            height=100,
             label_visibility="collapsed",
         )
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown("### 📁 Загрузить файл с товарами")
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        st.markdown("#### 📁 Источник данных")
         uploaded_file = st.file_uploader(
-            "Загрузите JSON файл",
+            "Загрузите JSON",
             type=["json"],
-            help="""Формат JSON:
-{
-  "product": {
-    "name": "Смартфон Ultra X",
-    "category": "смартфон",
-    "price": 49990,
-    "margin": "высокая",
-    "tags": ["новинка", "яркий", "премиум"],
-    "features": ["AMOLED 120 Гц", "50 Мп камера", "быстрая зарядка"]
-  },
-  "audience_profile": {
-    "age_range": "20-35",
-    "interests": ["гаджеты", "фото", "спорт"],
-    "behavior": ["реагирует на скидки"]
-  },
-  "channel": "telegram",
-  "trends": ["минимализм", "FOMO"],
-  "n_variants": 3
-}
-            """,
             label_visibility="collapsed",
         )
-        # Кнопка для скачивания встроенного примера test.json, чтобы сразу положить файл в поле загрузки
-        with open(DEFAULT_JSON_PATH, "rb") as sample_file:
-            st.download_button(
-                label="⬇️ Скачать пример test.json",
-                data=sample_file,
-                file_name="test.json",
-                mime="application/json",
-                use_container_width=True,
-            )
-        st.caption("Если файл не выбрали — будет использован встроенный test.json.")
+        
+        # Кнопка скачивания примера
+        if st.button("⬇️ Использовать пример (test.json)"):
+             # В реальном приложении здесь можно просто устанавливать флаг
+             # Но для визуала оставим как есть, логика ниже обработает отсутствие файла
+             pass
+        st.caption("Если файл не выбран, система использует встроенный демо-пример.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with col2:
-        st.markdown("### 🎯 Быстрый старт")
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        st.markdown("#### 🚀 Управление")
         st.markdown("""
-                - по желанию: введите промпт
-                - нажмите "Начать Генерацию"
-        """)
+        <div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 15px;">
+            1. Проверьте входные данные<br>
+            2. Добавьте уточнения<br>
+            3. Нажмите кнопку ниже
+        </div>
+        """, unsafe_allow_html=True)
         
-        if st.checkbox("Показать пример JSON"):
-            example_json = {
-                "product": {
-                    "name": "Смартфон Ultra X",
-                    "category": "смартфон",
-                    "price": 49990,
-                    "margin": "высокая",
-                    "tags": ["новинка", "яркий"],
-                    "features": ["AMOLED 120 Гц", "50 Мп камера"]
-                },
-                "audience_profile": {
-                    "age_range": "20-35",
-                    "interests": ["гаджеты", "фото"],
-                    "behavior": ["реагирует на скидки"]
-                },
-                "channel": "telegram",
-                "trends": ["минимализм", "FOMO"],
-                "n_variants": 3
-            }
-            st.json(example_json)
+        generate_button = st.button("✨ Сгенерировать креативы", use_container_width=True)
+        
+        with st.expander("👀 Структура JSON"):
+            st.code("""
+{
+  "product": { ... },
+  "audience": { ... },
+  "trends": [...]
+}
+            """, language="json")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("---")
-    
-    col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
-    with col_btn2:
-        generate_button = st.button("🚀 Начать генерацию", use_container_width=True)
-
+    # --- ЛОГИКА ГЕНЕРАЦИИ ---
     if generate_button:
-        # Читаем и парсим JSON: либо загруженный файл, либо встроенный test.json
+        st.markdown("---")
+        
+        # Читаем JSON
         if uploaded_file is not None:
             try:
                 raw_bytes = uploaded_file.read()
@@ -377,108 +352,80 @@ def main():
                 data = json.loads(raw_text)
                 records = parse_products_json(data)
             except Exception as e:
-                st.error(f"Не удалось прочитать JSON: {e}")
+                st.error(f"Ошибка JSON: {e}")
                 return
         else:
-            # Используем дефолтный пример test.json
             try:
                 with open(DEFAULT_JSON_PATH, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 records = parse_products_json(data)
-                st.info(f"Используется встроенный пример: {DEFAULT_JSON_PATH}")
+                st.toast("Загружен тестовый пример", icon="ℹ️")
             except Exception as e:
-                st.error(f"Не удалось прочитать встроенный пример {DEFAULT_JSON_PATH}: {e}")
+                st.error(f"Ошибка чтения примера: {e}")
                 return
 
-        # Инициализация LLM клиента
+        # Инициализация LLM
         try:
             llm_client = get_llm_client(use_mistral=use_real_mistral)
         except Exception as e:
-            st.error(f"Ошибка инициализации LLM-клиента: {e}")
-            if use_real_mistral:
-                st.info("💡 Убедитесь, что переменная окружения MISTRAL_API_KEY установлена, или используйте заглушку.")
+            st.error(f"Ошибка LLM клиента: {e}")
             return
 
-        # Генерация креативов
-        with st.spinner("🎨 Генерация креативов... Это может занять несколько секунд"):
+        # Генерация
+        with st.spinner("🔮 Анализирую аудиторию и пишу тексты..."):
             try:
                 result = generate_creatives(records, user_text, llm_client, use_real_mistral)
             except Exception as e:
-                st.error(f"❌ Ошибка при генерации: {e}")
+                st.error(f"Ошибка генерации: {e}")
                 return
 
-        st.success("✅ Генерация завершена успешно!")
-        st.markdown("---")
-
-        # Отображение всех вариантов рекламы
+        # --- ОТОБРАЖЕНИЕ РЕЗУЛЬТАТОВ ---
         variants = result.get("variants", [])
-        channel = result.get("channel", "telegram")
         product = result.get("product", {})
         
-        if not variants:
-            st.warning("⚠️ Не удалось сгенерировать варианты рекламы. Попробуйте еще раз.")
-            return
-
-        # Отображение информации о товаре с тегами
-        if product:
-            product_name = product.get("name", "")
-            product_category = product.get("category", "")
+        if variants:
+            st.success("Готово!")
+            
+            # Инфо о продукте
+            product_name = product.get("name", "Товар")
+            product_cat = product.get("category", "Категория")
             product_tags = product.get("tags", [])
-            product_price = product.get("price")
             
-            tags_html = ""
-            if product_tags:
-                tags_list = "".join([f'<span class="tag">{tag}</span>' for tag in product_tags])
-                tags_html = f'<div class="product-tags">{tags_list}</div>'
+            tags_html = "".join([f'<span class="product-tag">{t}</span>' for t in product_tags])
             
-            price_html = ""
-            if product_price:
-                price_html = f'<p style="margin: 0 0 0.75rem 0; color: #9ca3af; font-size: 12px;">Цена: {product_price:,} ₽</p>'
-            
-            product_info_html = f"""
-            <div class="product-info">
-                <div style="margin-bottom:6px;">
-                    <span class="badge">{product_category if product_category else 'Без категории'}</span>
-                </div>
-                <h3 style="margin: 0 0 0.5rem 0; color: #e5e7eb; font-weight: 650; font-size: 17px;">{product_name}</h3>
-                {price_html}
-                {tags_html}
+            st.markdown(f"""
+            <div class="glass-card" style="border-left: 4px solid #60a5fa;">
+                <div style="font-size:0.8rem; color:#94a3b8; text-transform:uppercase;">{product_cat}</div>
+                <div style="font-size:1.5rem; font-weight:700; color:white; margin: 4px 0;">{product_name}</div>
+                <div class="tag-container">{tags_html}</div>
             </div>
-            """
-            st.markdown(product_info_html, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
-        st.markdown(f"<div class='section-title'>Сгенерировано вариантов: {len(variants)} | Канал: {channel.upper()}</div>", unsafe_allow_html=True)
-        st.markdown(f"<div class='section-sub'>Показаны все варианты рекламных креативов</div>", unsafe_allow_html=True)
-
-        # Отображаем каждый вариант в карточке в стиле project_creative-main
-        for idx, variant in enumerate(variants, 1):
-            # Создаем карточку для варианта
-            card_html = f"""
-            <div class="ad-card">
-                <div class="variant-number">
-                    Вариант {idx}
-                </div>
-                <div class="ad-headline">{variant.get('headline', '')}</div>
-                <div class="ad-text">{variant.get('text', '')}</div>
-                <div class="ad-cta">
-                    CTA: {variant.get('cta', '')}
-                </div>
-                <div class="ad-meta">
-                    <strong>Примечания:</strong> {variant.get('notes', 'Нет примечаний')}
-                </div>
-            </div>
-            """
-            st.markdown(card_html, unsafe_allow_html=True)
-
-        # Изображение (общее для всех вариантов)
-        st.markdown("---")
-        st.markdown("<div class='section-title'>Визуальный креатив</div>", unsafe_allow_html=True)
-        st.image(
-            result["image_url"],
-            caption="Здесь будет отображаться сгенерированный баннер/креатив",
-            use_container_width=True,
-        )
-
+            # Варианты
+            st.subheader(f"📝 Варианты ({len(variants)})")
+            
+            # Используем columns для плиточного отображения на десктопе, но на мобильном они станут друг под друга
+            row1 = st.columns(len(variants))
+            
+            for idx, variant in enumerate(variants):
+                with row1[idx] if idx < len(row1) else st.container():
+                    st.markdown(f"""
+                    <div class="glass-card" style="height: 100%;">
+                        <div class="variant-badge">Вариант {idx + 1}</div>
+                        <div class="ad-headline">{variant.get('headline', '')}</div>
+                        <div class="ad-text">{variant.get('text', '')}</div>
+                        <div style="margin-top: auto;">
+                            <span class="ad-cta">{variant.get('cta', 'Подробнее')}</span>
+                        </div>
+                        <div class="ad-meta">
+                            {variant.get('notes', '')}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            # Картинка
+            st.markdown("### 🎨 Визуализация")
+            st.image(result["image_url"], caption="Сгенерированный визуальный концепт", use_container_width=True)
 
 if __name__ == "__main__":
     main()
