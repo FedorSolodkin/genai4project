@@ -21,15 +21,38 @@ def parse_products_json(data: Any) -> List[Dict]:
 def generate_creatives(records: List[Dict], user_text: str, llm_client, use_mistral: bool = True) -> Dict[str, Any]:
     """
     Генерирует креативы через LLM API.
+    Поддерживает два формата:
+    1. Полный формат: {product: {...}, audience_profile: {...}, channel: "...", ...}
+    2. Формат из productAnalyzer: {name: "...", category: "...", description: "...", ...}
     """
     first = records[0]  # Берём первую запись из списка
 
-    product = first.get("product", {}) or {}
-    audience = first.get("audience_profile", {}) or {}
-
-    channel = first.get("channel", "telegram")
-    trends = first.get("trends", [])
-    n_variants = first.get("n_variants", 1)
+    # Проверяем формат: если есть ключ "product" - это полный формат, иначе - формат из productAnalyzer
+    if "product" in first:
+        product = first.get("product", {}) or {}
+        audience = first.get("audience_profile", {}) or {}
+        channel = first.get("channel", "telegram")
+        trends = first.get("trends", [])
+        n_variants = first.get("n_variants", 1)
+    else:
+        # Формат из productAnalyzer: конвертируем в нужный формат
+        product = {
+            "name": first.get("name", ""),
+            "category": first.get("category", ""),
+            "price": first.get("price"),
+            "margin": "высокая" if first.get("price", 0) > first.get("market_cost", 0) * 1.5 else "средняя",
+            "tags": [],
+            "features": [first.get("description", "")]
+        }
+        # Создаём базовый профиль аудитории по умолчанию
+        audience = {
+            "age_range": "20-35",
+            "interests": ["гаджеты", "технологии"],
+            "behavior": ["реагирует на скидки"]
+        }
+        channel = "telegram"
+        trends = ["минимализм", "FOMO"]
+        n_variants = 1
 
     # Подготовка payload для LLM
     payload = {

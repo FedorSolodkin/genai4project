@@ -343,12 +343,12 @@ def build_request_from_input_json(input_json: Dict[str, Any]) -> GenerationReque
       "n_variants": 1
     }
     """
-    p = input_json["product"]
-    a = input_json["audience_profile"]
+    p = input_json.get("product", {})
+    a = input_json.get("audience_profile", {})
 
     product = Product(
-        name=p["name"],
-        category=p["category"],
+        name=p.get("name", ""),
+        category=p.get("category", ""),
         price=p.get("price"),
         margin=p.get("margin"),
         tags=p.get("tags", []),
@@ -356,7 +356,7 @@ def build_request_from_input_json(input_json: Dict[str, Any]) -> GenerationReque
     )
 
     audience = AudienceProfile(
-        age_range=a["age_range"],
+        age_range=a.get("age_range", "20-35"),
         interests=a.get("interests", []),
         behavior=a.get("behavior", []),
     )
@@ -364,7 +364,7 @@ def build_request_from_input_json(input_json: Dict[str, Any]) -> GenerationReque
     req = GenerationRequest(
         product=product,
         audience_profile=audience,
-        channel=input_json["channel"],
+        channel=input_json.get("channel", "telegram"),
         trends=input_json.get("trends", []),
         n_variants=input_json.get("n_variants", 1),
     )

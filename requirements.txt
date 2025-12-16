@@ -1,3 +1,6 @@
 streamlit
 httpx
-python-dotenv 
+python-dotenv
+openai
+sentence-transformers
+torch 
