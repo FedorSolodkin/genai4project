@@ -1,11 +1,11 @@
 import json
 from typing import Dict
 
-# Загружаем описание персон (структура catalog.json зависит от твоего проекта)
+# Загружаем описание персон (структура categorized_personas.json зависит от твоего проекта)
 # Здесь мы просто читаем файл, чтобы он был частью пайплайна —
 # в текущей заглушке evaluate_ad мы его не используем, но он готов.
 try:
-    with open("catalog.json", "r", encoding="utf-8") as f:
+    with open("categorized_personas.json", "r", encoding="utf-8") as f:
         parsed = json.load(f)
 except FileNotFoundError:
     parsed = {}  # если файла нет — просто игнорируем, заглушка всё равно работает
