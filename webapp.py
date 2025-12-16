@@ -33,7 +33,7 @@ def generate_creatives(records: List[Dict], user_text: str, llm_client, use_mist
         audience = first.get("audience_profile", {}) or {}
         channel = first.get("channel", "telegram")
         trends = first.get("trends", [])
-        n_variants = first.get("n_variants", 1)
+        n_variants = first.get("n_variants", 3)  # По умолчанию генерируем 3 варианта
     else:
         # Формат из productAnalyzer: конвертируем в нужный формат
         product = {
@@ -52,7 +52,7 @@ def generate_creatives(records: List[Dict], user_text: str, llm_client, use_mist
         }
         channel = "telegram"
         trends = ["минимализм", "FOMO"]
-        n_variants = 1
+        n_variants = 3  # По умолчанию генерируем 3 варианта
 
     # Подготовка payload для LLM
     payload = {
@@ -82,62 +82,138 @@ def generate_creatives(records: List[Dict], user_text: str, llm_client, use_mist
             "image_url": "https://i.imgur.com/ilo8Prn.jpeg",
         }
 
-    # Берем первый вариант для отображения
-    variant = variants[0]
-    text_lines = [
-        f"**{variant.get('headline', '')}**",
-        "",
-        variant.get('text', ''),
-        "",
-        f"👉 {variant.get('cta', '')}",
-        "",
-        f"**Канал:** {channel}",
-        f"**Примечания:** {variant.get('notes', '')}",
-    ]
-
-    if len(variants) > 1:
-        text_lines.append("")
-        text_lines.append(f"*Всего сгенерировано вариантов: {len(variants)}*")
-
-    result_text = "\n".join(text_lines)
-
+    # Возвращаем все варианты для красивого отображения
     placeholder_image_url = "https://i.imgur.com/ilo8Prn.jpeg"  # сюда вставлять ссылку на сгенерированную картинку
     return {
-        "text": result_text,
+        "variants": variants,  # Все варианты для отображения
+        "channel": channel,
         "image_url": placeholder_image_url,
-        "variants": variants,  # Сохраняем все варианты для возможного использования
     }
 
 def main():
     st.set_page_config(
         page_title="GENAI-4 интерфейс",
-        layout="centered",
+        layout="wide",
+        initial_sidebar_state="expanded",
     )
 
-    st.title("GENAI-4: интерфейс для генерации рекламных креативов")
-    st.caption("Ввод текста → загрузка JSON с товарами → запуск генерации → результат.")
+    # Кастомный CSS для красивого дизайна
+    st.markdown("""
+    <style>
+        .main-header {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            padding: 2rem;
+            border-radius: 10px;
+            color: white;
+            margin-bottom: 2rem;
+        }
+        .ad-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #667eea;
+        }
+        .ad-headline {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+        .ad-text {
+            font-size: 1rem;
+            color: #4a5568;
+            line-height: 1.6;
+            margin: 1rem 0;
+        }
+        .ad-cta {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            display: inline-block;
+            font-weight: bold;
+            margin-top: 1rem;
+        }
+        .ad-meta {
+            color: #718096;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e2e8f0;
+        }
+        .variant-number {
+            background: #667eea;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
+        .stButton>button {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 2rem;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+        .stButton>button:hover {
+            background: linear-gradient(90deg, #764ba2 0%, #667eea 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Красивый заголовок
+    st.markdown("""
+    <div class="main-header">
+        <h1 style="margin: 0; font-size: 2.5rem;">🚀 GENAI-4</h1>
+        <p style="margin: 0.5rem 0 0 0; font-size: 1.2rem; opacity: 0.9;">
+            Генератор рекламных креативов на основе ИИ
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Настройка в сайдбаре
-    st.sidebar.header("Настройки")
+    st.sidebar.markdown("### ⚙️ Настройки")
     use_real_mistral = st.sidebar.checkbox(
-        "Использовать Mistral API (иначе заглушка)",
+        "🤖 Использовать Mistral API",
         value=True,
         help="Для работы нужен ключ MISTRAL_API_KEY в переменных окружения или secrets.",
     )
+    
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 📊 Информация")
+    st.sidebar.info("""
+    **Как использовать:**
+    1. Загрузите JSON файл с товарами
+    2. (Опционально) Добавьте инструкции
+    3. Нажмите "Начать генерацию"
+    4. Получите 2-3 варианта рекламы
+    """)
 
-    st.markdown("### 1. Текстовые инструкции (опционально)")
-    user_text = st.text_area(
-        "Опиши здесь требования к креативам / кампании",
-        placeholder="Например: фокус на выгоде для молодёжной аудитории, без жёсткого давления, подчёркиваем качество камеры...",
-        height=150,
-    )
+    # Основной контент
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.markdown("### 📝 Текстовые инструкции (опционально)")
+        user_text = st.text_area(
+            "Опишите требования к креативам / кампании",
+            placeholder="Например: фокус на выгоде для молодёжной аудитории, без жёсткого давления, подчёркиваем качество камеры...",
+            height=120,
+            label_visibility="collapsed",
+        )
 
-    st.markdown("### 2. Загрузить файл с пулом товаров (JSON)")
-
-    uploaded_file = st.file_uploader(
-        "Загрузи .json файл в формате, как в примере ниже",
-        type=["json"],
-        help="""Формат:
+        st.markdown("### 📁 Загрузить файл с товарами")
+        uploaded_file = st.file_uploader(
+            "Загрузите JSON файл",
+            type=["json"],
+            help="""Формат JSON:
 {
   "product": {
     "name": "Смартфон Ultra X",
@@ -154,14 +230,46 @@ def main():
   },
   "channel": "telegram",
   "trends": ["минимализм", "FOMO"],
-  "n_variants": 2
+  "n_variants": 3
 }
-        """,
-    )
+            """,
+            label_visibility="collapsed",
+        )
 
-    st.markdown("### 3. Запуск генерации")
+    with col2:
+        st.markdown("### 🎯 Быстрый старт")
+        st.markdown("""
+        **Пример формата:**
+        - Используйте `catalog.json` или `best_products.json`
+        - Или создайте свой JSON по шаблону
+        """)
+        
+        if st.checkbox("Показать пример JSON"):
+            example_json = {
+                "product": {
+                    "name": "Смартфон Ultra X",
+                    "category": "смартфон",
+                    "price": 49990,
+                    "margin": "высокая",
+                    "tags": ["новинка", "яркий"],
+                    "features": ["AMOLED 120 Гц", "50 Мп камера"]
+                },
+                "audience_profile": {
+                    "age_range": "20-35",
+                    "interests": ["гаджеты", "фото"],
+                    "behavior": ["реагирует на скидки"]
+                },
+                "channel": "telegram",
+                "trends": ["минимализм", "FOMO"],
+                "n_variants": 3
+            }
+            st.json(example_json)
 
-    generate_button = st.button("Начать генерацию")
+    st.markdown("---")
+    
+    col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
+    with col_btn2:
+        generate_button = st.button("🚀 Начать генерацию", use_container_width=True)
 
     if generate_button:
         if uploaded_file is None:
@@ -188,22 +296,62 @@ def main():
             return
 
         # Генерация креативов
-        with st.spinner("Генерация креативов..."):
+        with st.spinner("🎨 Генерация креативов... Это может занять несколько секунд"):
             try:
                 result = generate_creatives(records, user_text, llm_client, use_real_mistral)
             except Exception as e:
-                st.error(f"Ошибка при генерации: {e}")
+                st.error(f"❌ Ошибка при генерации: {e}")
                 return
 
-        st.success("Генерация завершена!")
+        st.success("✅ Генерация завершена успешно!")
+        st.markdown("---")
 
-        st.markdown("### 4. Результат")
-        st.markdown(result["text"])
+        # Отображение всех вариантов рекламы
+        variants = result.get("variants", [])
+        channel = result.get("channel", "telegram")
+        
+        if not variants:
+            st.warning("⚠️ Не удалось сгенерировать варианты рекламы. Попробуйте еще раз.")
+            return
 
-        st.markdown("#### Картинка-креатив")
+        st.markdown(f"### 🎯 Сгенерировано вариантов: {len(variants)}")
+        st.markdown(f"**Канал:** {channel.upper()}")
+        st.markdown("---")
+
+        # Отображаем каждый вариант в красивой карточке
+        for idx, variant in enumerate(variants, 1):
+            # Определяем цвет для разных вариантов
+            colors = ["#667eea", "#764ba2", "#f093fb", "#4facfe"]
+            color = colors[(idx - 1) % len(colors)]
+            
+            # Создаем карточку для варианта
+            card_html = f"""
+            <div class="ad-card" style="border-left-color: {color};">
+                <div class="variant-number" style="background: {color};">
+                    Вариант {idx}
+                </div>
+                <div class="ad-headline">{variant.get('headline', '')}</div>
+                <div class="ad-text">{variant.get('text', '')}</div>
+                <div class="ad-cta" style="background: linear-gradient(90deg, {color} 0%, #5a4a82 100%);">
+                    👉 {variant.get('cta', '')}
+                </div>
+                <div class="ad-meta">
+                    <strong>📝 Примечания:</strong> {variant.get('notes', 'Нет примечаний')}
+                </div>
+            </div>
+            """
+            st.markdown(card_html, unsafe_allow_html=True)
+            
+            # Разделитель между вариантами (кроме последнего)
+            if idx < len(variants):
+                st.markdown("<br>", unsafe_allow_html=True)
+
+        # Изображение (общее для всех вариантов)
+        st.markdown("---")
+        st.markdown("### 🖼️ Визуальный креатив")
         st.image(
             result["image_url"],
-            caption="Здесь будет вывод сгенерированного баннера/креатива.",
+            caption="Здесь будет отображаться сгенерированный баннер/креатив",
             use_container_width=True,
         )
 
