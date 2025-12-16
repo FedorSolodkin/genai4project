@@ -101,12 +101,12 @@ def main():
         initial_sidebar_state="expanded",
     )
 
-    # Нейтральный светлый CSS (убраны агрессивные тёмные стили)
+    # Единый светлый стиль: светлый фон, тёмный текст, спокойные карточки
     st.markdown("""
     <style>
         body, [data-testid="stAppViewContainer"], .block-container {
-            background: #f7f9fb;
-            color: #1f2937;
+            background: #f9fafb;
+            color: #111827;
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
         }
         .main-header {
@@ -117,26 +117,26 @@ def main():
             margin-bottom: 20px;
         }
         .main-header h1 {
-            color: #111827;
+            color: #0f172a;
             margin: 0;
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 700;
         }
         .main-header p {
-            color: #6b7280;
+            color: #4b5563;
             margin: 6px 0 0 0;
             font-size: 13px;
         }
-        .ad-card {
+        .product-info, .ad-card {
             background: #ffffff;
             padding: 18px;
             border-radius: 12px;
             border: 1px solid #e5e7eb;
             margin-bottom: 16px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.02);
         }
         .ad-card:hover {
-            box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+            box-shadow: 0 8px 18px rgba(0,0,0,0.05);
         }
         .variant-number {
             background: #eef2ff;
@@ -146,7 +146,7 @@ def main():
             font-weight: 600;
             font-size: 11px;
             text-transform: uppercase;
-            letter-spacing: .12em;
+            letter-spacing: .1em;
             display: inline-block;
             margin-bottom: 10px;
             border: 1px solid #c7d2fe;
@@ -154,15 +154,15 @@ def main():
         .ad-headline {
             font-size: 17px;
             font-weight: 650;
-            color: #111827;
+            color: #0f172a;
             margin-bottom: 6px;
             line-height: 1.3;
         }
         .ad-text {
             font-size: 14px;
-            color: #374151;
+            color: #1f2937;
             line-height: 1.7;
-            margin: 12px 0;
+            margin: 10px 0 12px;
         }
         .ad-cta {
             display: inline-block;
@@ -182,14 +182,6 @@ def main():
             padding-top: 10px;
             border-top: 1px solid #e5e7eb;
         }
-        .product-info {
-            background: #ffffff;
-            padding: 18px;
-            border-radius: 12px;
-            border: 1px solid #e5e7eb;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.03);
-        }
         .product-tags {
             display: flex;
             flex-wrap: wrap;
@@ -204,7 +196,7 @@ def main():
             font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: .12em;
+            letter-spacing: .1em;
             border: 1px solid #c7d2fe;
         }
         .stButton>button {
@@ -222,14 +214,14 @@ def main():
             color: #ffffff;
         }
         .section-title {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 700;
             margin-bottom: 6px;
-            color: #111827;
+            color: #0f172a;
         }
         .section-sub {
             font-size: 13px;
-            color: #6b7280;
+            color: #4b5563;
             margin-bottom: 16px;
         }
         .badge {
@@ -239,7 +231,7 @@ def main():
             font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: .12em;
+            letter-spacing: .1em;
             background: #eef2ff;
             color: #4338ca;
             border: 1px solid #c7d2fe;
@@ -333,8 +325,8 @@ def main():
     with col2:
         st.markdown("### 🎯 Быстрый старт")
         st.markdown("""
-        **Пример формата:**
-        - Создайте свой JSON по шаблону
+                - по желанию: введите промпт
+                - нажмите "Начать Генерацию"
         """)
         
         if st.checkbox("Показать пример JSON"):
