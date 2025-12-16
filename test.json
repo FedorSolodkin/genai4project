@@ -1,0 +1,90 @@
+{
+  "product": {
+    "name": "Смартфон Ultra X",
+    "category": "смартфон",
+    "price": 49990,
+    "margin": "высокая",
+    "tags": ["новинка", "яркий", "премиум"],
+    "features": ["AMOLED 120 Гц", "50 Мп камера", "быстрая зарядка"]
+  },
+  "audience_profile": {
+    "age_range": "20-35",
+    "interests": ["гаджеты", "фото", "спорт"],
+    "behavior": ["реагирует на скидки"]
+  },
+  "channel": "telegram",
+  "trends": ["минимализм", "FOMO"],
+  "n_variants": 3
+}
+[
+  {
+    "category": "Смартфоны",
+    "name": "Samsung Galaxy S24",
+    "description": "Флагманский смартфон с мощной камерой и быстрой зарядкой.",
+    "price": 89990,
+    "market_cost": 65000
+  },
+  {
+    "category": "Смартфоны",
+    "name": "Apple iPhone 15",
+    "description": "Премиальный смартфон с экосистемой iOS и отличной оптимизацией.",
+    "price": 94990,
+    "market_cost": 72000
+  },
+  {
+    "category": "Смартфоны",
+    "name": "Xiaomi Redmi Note 13 Pro",
+    "description": "Бюджетный смартфон с AMOLED-дисплеем и хорошей автономностью.",
+    "price": 29990,
+    "market_cost": 18000
+  },
+  {
+    "category": "Смартфоны",
+    "name": "Google Pixel 8",
+    "description": "Чистый Android, отличная камера и регулярные обновления.",
+    "price": 74990,
+    "market_cost": 55000
+  },
+  {
+    "category": "Смартфоны",
+    "name": "Realme GT Neo 6",
+    "description": "Игровой смартфон с высокой производительностью и ярким экраном.",
+    "price": 42990,
+    "market_cost": 28000
+  },
+  {
+    "category": "Смартфоны",
+    "name": "OnePlus 12",
+    "description": "Быстрый и стильный флагман с улучшенной системой охлаждения.",
+    "price": 79990,
+    "market_cost": 58000
+  },
+  {
+    "category": "Смартфоны",
+    "name": "Huawei P60 Pro",
+    "description": "Смартфон с уникальным дизайном и передовой камерой Leica.",
+    "price": 84990,
+    "market_cost": 60000
+  },
+  {
+    "category": "Смартфоны",
+    "name": "Motorola Edge 40 Neo",
+    "description": "Элегантный смартфон с водонепроницаемым корпусом и чистым Android.",
+    "price": 36990,
+    "market_cost": 24000
+  },
+  {
+    "category": "Смартфоны",
+    "name": "Oppo Find X6",
+    "description": "Стильный телефон с выдающейся цветопередачей и качественным звуком.",
+    "price": 69990,
+    "market_cost": 48000
+  },
+  {
+    "category": "Смартфоны",
+    "name": "Vivo X100",
+    "description": "Инновационный смартфон с ИИ-камерой и ультрабыстрой зарядкой.",
+    "price": 77990,
+    "market_cost": 53000
+  }
+]

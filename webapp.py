@@ -5,6 +5,9 @@ from typing import Any, Dict, List
 import streamlit as st
 from prompt import get_llm_client, AdGenerator
 
+# Путь к встроенному примеру
+DEFAULT_JSON_PATH = "test.json"
+
 def parse_products_json(data: Any) -> List[Dict]:
 
     if isinstance(data, dict):
@@ -397,22 +400,29 @@ def main():
     
     col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
     with col_btn2:
-        generate_button = st.button("🚀 Начать генерацию", use_container_width=True)
+    generate_button = st.button("🚀 Начать генерацию", use_container_width=True)
 
     if generate_button:
-        if uploaded_file is None:
-            st.error("Сначала загрузи JSON-файл с пулом товаров.")
-            return
-
-        # Читаем и парсим JSON
-        try:
-            raw_bytes = uploaded_file.read()
-            raw_text = raw_bytes.decode("utf-8")
-            data = json.loads(raw_text)
-            records = parse_products_json(data)
-        except Exception as e:
-            st.error(f"Не удалось прочитать JSON: {e}")
-            return
+        # Читаем и парсим JSON: либо загруженный файл, либо встроенный test.json
+        if uploaded_file is not None:
+            try:
+                raw_bytes = uploaded_file.read()
+                raw_text = raw_bytes.decode("utf-8")
+                data = json.loads(raw_text)
+                records = parse_products_json(data)
+            except Exception as e:
+                st.error(f"Не удалось прочитать JSON: {e}")
+                return
+        else:
+            # Используем дефолтный пример test.json
+            try:
+                with open(DEFAULT_JSON_PATH, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                records = parse_products_json(data)
+                st.info(f"Используется встроенный пример: {DEFAULT_JSON_PATH}")
+            except Exception as e:
+                st.error(f"Не удалось прочитать встроенный пример {DEFAULT_JSON_PATH}: {e}")
+                return
 
         # Инициализация LLM клиента
         try:
