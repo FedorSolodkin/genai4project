@@ -366,6 +366,15 @@ def main():
             """,
             label_visibility="collapsed",
         )
+        # Кнопка для скачивания встроенного примера test.json, чтобы сразу положить файл в поле загрузки
+        with open(DEFAULT_JSON_PATH, "rb") as sample_file:
+            st.download_button(
+                label="⬇️ Скачать пример test.json",
+                data=sample_file,
+                file_name="test.json",
+                mime="application/json",
+                use_container_width=True,
+            )
 
     with col2:
         st.markdown("### 🎯 Быстрый старт")
@@ -400,7 +409,7 @@ def main():
     
     col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
     with col_btn2:
-    generate_button = st.button("🚀 Начать генерацию", use_container_width=True)
+        generate_button = st.button("🚀 Начать генерацию", use_container_width=True)
 
     if generate_button:
         # Читаем и парсим JSON: либо загруженный файл, либо встроенный test.json
