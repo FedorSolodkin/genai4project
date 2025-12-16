@@ -41,7 +41,7 @@ def generate_creatives(records: List[Dict], user_text: str, llm_client, use_mist
             "category": first.get("category", ""),
             "price": first.get("price"),
             "margin": "высокая" if first.get("price", 0) > first.get("market_cost", 0) * 1.5 else "средняя",
-            "tags": [],
+            "tags": first.get("tags", []),  # Извлекаем теги из данных
             "features": [first.get("description", "")]
         }
         # Создаём базовый профиль аудитории по умолчанию
@@ -88,6 +88,7 @@ def generate_creatives(records: List[Dict], user_text: str, llm_client, use_mist
         "variants": variants,  # Все варианты для отображения
         "channel": channel,
         "image_url": placeholder_image_url,
+        "product": product,  # Добавляем информацию о товаре для отображения тегов
     }
 
 def main():
@@ -97,85 +98,212 @@ def main():
         initial_sidebar_state="expanded",
     )
 
-    # Кастомный CSS для красивого дизайна
+    # Кастомный CSS для тёмного дизайна (как в project_creative-main)
     st.markdown("""
     <style>
+        body {
+            background-color: #020617;
+            color: #e5e7eb;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+        }
+        .main {
+            background: radial-gradient(circle at top left, #020617 0, #0f172a 40%, #020617 100%);
+            color: #e5e7eb;
+        }
         .main-header {
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            background: radial-gradient(circle at top left, #111827 0, #020617 65%);
             padding: 2rem;
-            border-radius: 10px;
-            color: white;
+            border-radius: 20px;
+            border: 1px solid rgba(148,163,184,0.3);
             margin-bottom: 2rem;
+            box-shadow: 0 18px 40px rgba(15,23,42,0.65);
+        }
+        .main-header h1 {
+            color: #e5e7eb;
+            margin: 0;
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #e5e7eb, #60a5fa);
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+        .main-header p {
+            color: #9ca3af;
+            margin: 0.5rem 0 0 0;
+            font-size: 13px;
         }
         .ad-card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 1.5rem;
-            border-left: 4px solid #667eea;
+            background: radial-gradient(circle at top left, #111827 0, #020617 65%);
+            padding: 18px 20px;
+            border-radius: 20px;
+            border: 1px solid rgba(148,163,184,0.3);
+            margin-bottom: 16px;
+            box-shadow: 0 18px 40px rgba(15,23,42,0.65);
+            transition: box-shadow 0.2s;
+        }
+        .ad-card:hover {
+            box-shadow: 0 18px 40px rgba(15,23,42,0.85);
+        }
+        .variant-number {
+            background: rgba(56,189,248,0.1);
+            color: #38bdf8;
+            padding: 2px 10px;
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .16em;
+            display: inline-block;
+            margin-bottom: 1rem;
+            border: 1px solid rgba(56,189,248,0.4);
         }
         .ad-headline {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #2d3748;
-            margin-bottom: 0.5rem;
+            font-size: 17px;
+            font-weight: 650;
+            color: #e5e7eb;
+            margin-bottom: 4px;
+            line-height: 1.3;
         }
         .ad-text {
-            font-size: 1rem;
-            color: #4a5568;
-            line-height: 1.6;
+            font-size: 13px;
+            color: #d1d5db;
+            line-height: 1.7;
             margin: 1rem 0;
         }
         .ad-cta {
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
             display: inline-block;
-            font-weight: bold;
-            margin-top: 1rem;
+            margin-top: 8px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(249,115,22,0.16);
+            color: #fdba74;
+            font-size: 12px;
+            border: 1px solid rgba(249,115,22,0.45);
+            font-weight: 500;
         }
         .ad-meta {
-            color: #718096;
-            font-size: 0.9rem;
-            margin-top: 1rem;
+            color: #9ca3af;
+            font-size: 12px;
+            margin-top: 1.25rem;
             padding-top: 1rem;
-            border-top: 1px solid #e2e8f0;
+            border-top: 1px solid rgba(148,163,184,0.3);
         }
-        .variant-number {
-            background: #667eea;
-            color: white;
-            padding: 0.5rem 1rem;
+        .product-info {
+            background: radial-gradient(circle at top left, #111827 0, #020617 65%);
+            padding: 18px 20px;
             border-radius: 20px;
-            font-weight: bold;
-            display: inline-block;
-            margin-bottom: 1rem;
+            border: 1px solid rgba(148,163,184,0.3);
+            margin-bottom: 2rem;
+            box-shadow: 0 18px 40px rgba(15,23,42,0.65);
+        }
+        .product-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+        .tag {
+            background: rgba(96,165,250,0.15);
+            color: #60a5fa;
+            padding: 2px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .16em;
+            border: 1px solid rgba(96,165,250,0.5);
         }
         .stButton>button {
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
+            background: rgba(96,165,250,0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(96,165,250,0.5);
+            border-radius: 999px;
             padding: 0.75rem 2rem;
-            font-weight: bold;
+            font-weight: 600;
             font-size: 1rem;
+            transition: background 0.2s;
         }
         .stButton>button:hover {
-            background: linear-gradient(90deg, #764ba2 0%, #667eea 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            background: rgba(96,165,250,0.25);
+            color: #60a5fa;
+        }
+        .section-title {
+            font-size: 26px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            background: linear-gradient(to right, #e5e7eb, #60a5fa);
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+        .section-sub {
+            font-size: 13px;
+            color: #9ca3af;
+            margin-bottom: 18px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .16em;
+            background: rgba(56,189,248,0.1);
+            color: #38bdf8;
+            border: 1px solid rgba(56,189,248,0.4);
+            margin-right: 6px;
+        }
+        [data-testid="stSidebar"] {
+            background: radial-gradient(circle at top left, #111827 0, #020617 65%);
+        }
+        [data-testid="stSidebar"] * {
+            color: #e5e7eb;
+        }
+        [data-testid="stTextArea"] textarea {
+            background: #111827;
+            color: #e5e7eb;
+            border: 1px solid rgba(148,163,184,0.3);
+        }
+        [data-testid="stFileUploader"] {
+            background: #111827;
+        }
+        h3 {
+            color: #e5e7eb;
+        }
+        .stMarkdown p {
+            color: #d1d5db;
+        }
+        [data-testid="stInfo"] {
+            background: rgba(56,189,248,0.1);
+            border: 1px solid rgba(56,189,248,0.4);
+        }
+        [data-testid="stSuccess"] {
+            background: rgba(34,197,94,0.1);
+            border: 1px solid rgba(34,197,94,0.4);
+        }
+        [data-testid="stError"] {
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.4);
+        }
+        [data-testid="stWarning"] {
+            background: rgba(249,115,22,0.1);
+            border: 1px solid rgba(249,115,22,0.4);
         }
     </style>
     """, unsafe_allow_html=True)
 
-    # Красивый заголовок
+    # Заголовок в стиле project_creative-main
     st.markdown("""
-    <div class="main-header">
-        <h1 style="margin: 0; font-size: 2.5rem;">🚀 GENAI-4</h1>
-        <p style="margin: 0.5rem 0 0 0; font-size: 1.2rem; opacity: 0.9;">
-            Генератор рекламных креативов на основе ИИ
-        </p>
+    <div style="padding: 8px 0 18px 0;">
+      <div style="font-size:13px; letter-spacing:.16em; text-transform:uppercase; color:#6b7280;">
+        GENAI-4 · Autonomous Marketing Agent
+      </div>
+      <div class="section-title">
+        Генератор рекламных креативов на основе ИИ
+      </div>
+      <div class="section-sub">
+        Загрузите JSON файл с товарами — система сгенерирует креативы под выбранный канал
+      </div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -309,46 +437,66 @@ def main():
         # Отображение всех вариантов рекламы
         variants = result.get("variants", [])
         channel = result.get("channel", "telegram")
+        product = result.get("product", {})
         
         if not variants:
             st.warning("⚠️ Не удалось сгенерировать варианты рекламы. Попробуйте еще раз.")
             return
 
-        st.markdown(f"### 🎯 Сгенерировано вариантов: {len(variants)}")
-        st.markdown(f"**Канал:** {channel.upper()}")
-        st.markdown("---")
-
-        # Отображаем каждый вариант в красивой карточке
-        for idx, variant in enumerate(variants, 1):
-            # Определяем цвет для разных вариантов
-            colors = ["#667eea", "#764ba2", "#f093fb", "#4facfe"]
-            color = colors[(idx - 1) % len(colors)]
+        # Отображение информации о товаре с тегами
+        if product:
+            product_name = product.get("name", "")
+            product_category = product.get("category", "")
+            product_tags = product.get("tags", [])
+            product_price = product.get("price")
             
+            tags_html = ""
+            if product_tags:
+                tags_list = "".join([f'<span class="tag">{tag}</span>' for tag in product_tags])
+                tags_html = f'<div class="product-tags">{tags_list}</div>'
+            
+            price_html = ""
+            if product_price:
+                price_html = f'<p style="margin: 0 0 0.75rem 0; color: #9ca3af; font-size: 12px;">Цена: {product_price:,} ₽</p>'
+            
+            product_info_html = f"""
+            <div class="product-info">
+                <div style="margin-bottom:6px;">
+                    <span class="badge">{product_category if product_category else 'Без категории'}</span>
+                </div>
+                <h3 style="margin: 0 0 0.5rem 0; color: #e5e7eb; font-weight: 650; font-size: 17px;">{product_name}</h3>
+                {price_html}
+                {tags_html}
+            </div>
+            """
+            st.markdown(product_info_html, unsafe_allow_html=True)
+
+        st.markdown(f"<div class='section-title'>Сгенерировано вариантов: {len(variants)} | Канал: {channel.upper()}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='section-sub'>Показаны все варианты рекламных креативов</div>", unsafe_allow_html=True)
+
+        # Отображаем каждый вариант в карточке в стиле project_creative-main
+        for idx, variant in enumerate(variants, 1):
             # Создаем карточку для варианта
             card_html = f"""
-            <div class="ad-card" style="border-left-color: {color};">
-                <div class="variant-number" style="background: {color};">
+            <div class="ad-card">
+                <div class="variant-number">
                     Вариант {idx}
                 </div>
                 <div class="ad-headline">{variant.get('headline', '')}</div>
                 <div class="ad-text">{variant.get('text', '')}</div>
-                <div class="ad-cta" style="background: linear-gradient(90deg, {color} 0%, #5a4a82 100%);">
-                    👉 {variant.get('cta', '')}
+                <div class="ad-cta">
+                    CTA: {variant.get('cta', '')}
                 </div>
                 <div class="ad-meta">
-                    <strong>📝 Примечания:</strong> {variant.get('notes', 'Нет примечаний')}
+                    <strong>Примечания:</strong> {variant.get('notes', 'Нет примечаний')}
                 </div>
             </div>
             """
             st.markdown(card_html, unsafe_allow_html=True)
-            
-            # Разделитель между вариантами (кроме последнего)
-            if idx < len(variants):
-                st.markdown("<br>", unsafe_allow_html=True)
 
         # Изображение (общее для всех вариантов)
         st.markdown("---")
-        st.markdown("### 🖼️ Визуальный креатив")
+        st.markdown("<div class='section-title'>Визуальный креатив</div>", unsafe_allow_html=True)
         st.image(
             result["image_url"],
             caption="Здесь будет отображаться сгенерированный баннер/креатив",
