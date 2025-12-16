@@ -101,46 +101,47 @@ def main():
         initial_sidebar_state="expanded",
     )
 
-    # Единый светлый стиль: светлый фон, тёмный текст, спокойные карточки
+    # Тёмный стиль: тёмный фон, светлый текст, контрастные карточки
     st.markdown("""
     <style>
         body, [data-testid="stAppViewContainer"], .block-container {
-            background: #f9fafb;
-            color: #111827;
+            background: #020617;
+            color: #e5e7eb;
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
         }
         .main-header {
-            background: #ffffff;
+            background: radial-gradient(circle at top left, #111827 0, #020617 65%);
             padding: 20px;
-            border-radius: 12px;
-            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            border: 1px solid rgba(148,163,184,0.35);
             margin-bottom: 20px;
+            box-shadow: 0 18px 40px rgba(15,23,42,0.55);
         }
         .main-header h1 {
-            color: #0f172a;
+            color: #e5e7eb;
             margin: 0;
             font-size: 22px;
             font-weight: 700;
         }
         .main-header p {
-            color: #4b5563;
+            color: #9ca3af;
             margin: 6px 0 0 0;
             font-size: 13px;
         }
         .product-info, .ad-card {
-            background: #ffffff;
+            background: radial-gradient(circle at top left, #111827 0, #020617 65%);
             padding: 18px;
-            border-radius: 12px;
-            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            border: 1px solid rgba(148,163,184,0.35);
             margin-bottom: 16px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+            box-shadow: 0 18px 40px rgba(15,23,42,0.55);
         }
         .ad-card:hover {
-            box-shadow: 0 8px 18px rgba(0,0,0,0.05);
+            box-shadow: 0 18px 48px rgba(15,23,42,0.7);
         }
         .variant-number {
-            background: #eef2ff;
-            color: #4338ca;
+            background: rgba(56,189,248,0.12);
+            color: #38bdf8;
             padding: 2px 10px;
             border-radius: 999px;
             font-weight: 600;
@@ -149,18 +150,18 @@ def main():
             letter-spacing: .1em;
             display: inline-block;
             margin-bottom: 10px;
-            border: 1px solid #c7d2fe;
+            border: 1px solid rgba(56,189,248,0.45);
         }
         .ad-headline {
             font-size: 17px;
             font-weight: 650;
-            color: #0f172a;
+            color: #e5e7eb;
             margin-bottom: 6px;
             line-height: 1.3;
         }
         .ad-text {
             font-size: 14px;
-            color: #1f2937;
+            color: #d1d5db;
             line-height: 1.7;
             margin: 10px 0 12px;
         }
@@ -169,18 +170,18 @@ def main():
             margin-top: 8px;
             padding: 6px 12px;
             border-radius: 999px;
-            background: #111827;
-            color: #ffffff;
+            background: rgba(249,115,22,0.18);
+            color: #fdba74;
             font-size: 12px;
-            border: 1px solid #111827;
+            border: 1px solid rgba(249,115,22,0.5);
             font-weight: 600;
         }
         .ad-meta {
-            color: #6b7280;
+            color: #9ca3af;
             font-size: 12px;
             margin-top: 12px;
             padding-top: 10px;
-            border-top: 1px solid #e5e7eb;
+            border-top: 1px solid rgba(148,163,184,0.35);
         }
         .product-tags {
             display: flex;
@@ -189,39 +190,40 @@ def main():
             margin-top: 0.75rem;
         }
         .tag {
-            background: #eef2ff;
-            color: #4338ca;
+            background: rgba(96,165,250,0.12);
+            color: #60a5fa;
             padding: 4px 10px;
             border-radius: 999px;
             font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: .1em;
-            border: 1px solid #c7d2fe;
+            border: 1px solid rgba(96,165,250,0.45);
         }
         .stButton>button {
-            background: #111827;
-            color: #ffffff;
-            border: 1px solid #111827;
+            background: rgba(96,165,250,0.16);
+            color: #e5e7eb;
+            border: 1px solid rgba(96,165,250,0.5);
             border-radius: 999px;
             padding: 0.75rem 2rem;
             font-weight: 600;
             font-size: 1rem;
-            transition: background 0.2s;
+            transition: background 0.2s, color 0.2s, border 0.2s;
         }
         .stButton>button:hover {
-            background: #1f2937;
+            background: rgba(96,165,250,0.24);
             color: #ffffff;
+            border: 1px solid rgba(96,165,250,0.7);
         }
         .section-title {
             font-size: 22px;
             font-weight: 700;
             margin-bottom: 6px;
-            color: #0f172a;
+            color: #e5e7eb;
         }
         .section-sub {
             font-size: 13px;
-            color: #4b5563;
+            color: #9ca3af;
             margin-bottom: 16px;
         }
         .badge {
@@ -232,10 +234,20 @@ def main():
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: .1em;
-            background: #eef2ff;
-            color: #4338ca;
-            border: 1px solid #c7d2fe;
+            background: rgba(56,189,248,0.12);
+            color: #38bdf8;
+            border: 1px solid rgba(56,189,248,0.45);
             margin-right: 6px;
+        }
+        /* Поля ввода */
+        [data-testid="stTextArea"] textarea,
+        [data-testid="stFileUploader"] section div {
+            background: #0b1224;
+            color: #e5e7eb;
+            border: 1px solid rgba(148,163,184,0.35);
+        }
+        [data-testid="stFileUploader"] section div div {
+            color: #e5e7eb;
         }
     </style>
     """, unsafe_allow_html=True)
